@@ -160,8 +160,12 @@ async def main():
     print("⏳ بانتظار رصد الطلبات في المجموعات...")
     await client.run_until_disconnected()
 
+# بدلاً من تشغيل السكرايبر فقط، سنستخدم Thread ليتم تشغيله مع سيرفر الويب في نفس الوقت
+
 if __name__ == '__main__':
-    # تشغيل صفحة الويب الوهمية في الخلفية لإبقاء الخدمة تعمل مجاناً
-    keep_alive()
-    # تشغيل السكرايبر الأساسي تليجرام
-    asyncio.run(main())
+    # 1. تشغيل السكرايبر في مسار منفصل (Thread)
+    scraper_thread = Thread(target=lambda: asyncio.run(main()))
+    scraper_thread.start()
+    
+    # 2. تشغيل سيرفر الويب الوهمي (ليظل الرندر مستيقظاً)
+    run_web_server()
