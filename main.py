@@ -2,8 +2,27 @@ import os
 import asyncio
 from telethon import TelegramClient, events
 from telethon.tl.types import Channel
+from threading import Thread
+from flask import Flask
 
-# قراءة المتغيرات الأساسية بأمان من إعدادات الاستضافة (Render)
+# --- تشغيل سيرفر ويب وهمي لتخطي نظام Render المجاني ---
+web_app = Flask('')
+
+@web_app.route('/')
+def home():
+    return "Scraper is running successfully!"
+
+def run_web_server():
+    # Render يمرر رقم المنفذ تلقائياً عبر متغير PORT
+    port = int(os.environ.get("PORT", 8080))
+    web_app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_web_server)
+    t.start()
+# ----------------------------------------------------
+
+# قراءة المتغيرات الأساسية بأمان من إعدادات الاستضافة
 API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "")
 PHONE = os.getenv("PHONE", "")
@@ -17,12 +36,11 @@ except ImportError:
     KEYWORDS_SET = {"حل واجب", "بحث تخرج", "جامعة", "assignment", "مشروع"}
     CATEGORIES = {
         'واجبات': ['واجب', 'حل', 'assignment'],
-        'أبحاث': ['بحث', 'تخرج', 'دياتوم', 'صياغة'],
+        'أبحاث': ['بحث', 'تخرج', 'صياغة'],
         'برمجة': ['كود', 'جاڤا', 'java', 'python']
     }
     CATEGORY_COLORS = {'واجبات': '📚', 'أبحاث': '🔬', 'برمجة': '💻', 'عام': '📌'}
 
-# استخدام StringSession لتفادي مشاكل تسجيل الدخول المتكرر على السيرفرات السحابية
 SESSION = os.getenv("SESSION_STRING", "session")
 client = TelegramClient(SESSION, API_ID, API_HASH)
 
@@ -78,7 +96,6 @@ async def handler(event):
     try:
         chat = await event.get_chat()
         
-        # تجاهل الرسائل القادمة من القناة الهدف نفسها لمنع التكرار اللانهائي
         if isinstance(chat, Channel) and chat.id == TARGET_CHANNEL:
             return
         
@@ -101,13 +118,9 @@ async def handler(event):
             category = get_category(keyword)
             color = CATEGORY_COLORS.get(category, '📌')
             
-            # رابط المستخدم لسهولة الوصول إليه
             user_display = f"[{full_name}](tg://user?id={user_id})"
-            
-            # رابط المجموعة
             group_display = f"[{group_name}]({group_link})" if group_link else group_name
             
-            # بناء الرسالة بشكل منسق وجذاب
             msg_lines = [
                 f"{color} **طلب جديد - {category}**\n",
                 f"📌 **الكلمة المفتاحية:** `{keyword}`",
@@ -137,7 +150,6 @@ async def handler(event):
         print(f"❌ خطأ في معالجة الرسالة: {e}")
 
 async def main():
-    # تسجيل الدخول باستخدام الحساب الشخصي وتأكيد رقم الهاتف تلقائياً
     await client.start(phone=PHONE)
     me = await client.get_me()
     print("=" * 50)
@@ -149,5 +161,7 @@ async def main():
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
+    # تشغيل صفحة الويب الوهمية في الخلفية لإبقاء الخدمة تعمل مجاناً
+    keep_alive()
+    # تشغيل السكرايبر الأساسي تليجرام
     asyncio.run(main())
-
