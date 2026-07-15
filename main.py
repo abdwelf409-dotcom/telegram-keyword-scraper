@@ -1,5 +1,6 @@
 import asyncio
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession  # <--- هذا السطر هو الذي كان ناقصاً
 from threading import Thread
 from flask import Flask
 
