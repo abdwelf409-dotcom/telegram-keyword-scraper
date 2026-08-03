@@ -1,6 +1,8 @@
 import asyncio
 import os
 import re
+import json
+from datetime import datetime
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from threading import Thread
@@ -11,11 +13,23 @@ API_ID = int(os.environ.get('API_ID', 35366951))
 API_HASH = os.environ.get('API_HASH', 'd079f23211d239c1ebb67eac4dc5095e')
 SESSION_STRING = '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A='
 TARGET_CHANNEL = int(os.environ.get('TARGET_CHANNEL', -1003948605081))
-DEVELOPER = "العبدول الشدادي"
-DEVELOPER_ID = None
+DEVELOPER = "بولد"
 # =================================================
 
-# ========== فلتر الإعلانات المتطور (لحظر إعلانات المكاتب الكبيرة والشركات) ==========
+# ========== حالة البوت ==========
+BOT_STATUS = {
+    'running': True,
+    'monitoring': True,
+    'start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    'total_requests': 0,
+    'total_ads_blocked': 0,
+    'total_groups': 0,
+    'last_request': None
+}
+
+MONITORED_GROUPS = set()
+
+# ========== فلتر الإعلانات ==========
 AD_PATTERNS = [
     r'للبيع', r'بيع', r'اشتري', r'سعر', r'خصم', r'عرض\s+محدود',
     r'تخفيض', r'متجر', r'متاح\s+الآن', r'توصيل', r'شحن', r'مجاني',
@@ -31,13 +45,9 @@ AD_PATTERNS = [
     r'أسعارنا\s+منافسة', r'لإنجاز\s+مهامكم', r'خدمة\s+العملاء',
     r'خدمات\s+البحث\s+العلمي', r'الدراسات\s+العليا', r'للطلب\s+والاستفسار',
     r'wa\.me', r'لخدمات', r'فريقنا', r'خبراء\s+أكاديميين',
-    r'🔥', r'💥', r'⚡️\s+عرض', r'🎉\s+تخفيض', r'📌\s+إعلان', r'💢'
 ]
 
-# قائمة الإعلانات المتعلمة (يتعلمها البوت تلقائياً)
-LEARNED_AD_PATTERNS = []
-
-# ========== الكلمات المفتاحية للطلبات ==========
+# ========== الكلمات المفتاحية ==========
 KEYWORDS_SET = {
     'بنات تعرفون حد يسوي بحوث تخرج', 'بنات تعرفون حد يسوي مشاريع', 'بنات تعرفون حد يسوي سكليف', 
     'بنات تعرفون حد يسوي عرض', 'بنات تعرفون حد يسوي برزنتيشن', 'بنات تعرفون أحد يسوي بحوث', 
@@ -135,31 +145,6 @@ KEYWORDS_SET = {
     'مين يسوي', 'حد يسوي', 'احد يسوي', 'من يقدر', 'مين يقدر',
 }
 
-# ========== قاموس تصحيح الأخطاء الإملائية ==========
-SPELLING_FIX = {
-    'بربوينت': 'بوربوينت', 'بوربينت': 'بوربوينت', 'بوربوينت': 'بوربوينت', 'باوربونت': 'بوربوينت',
-    'وجب': 'واجب', 'وجبات': 'واجبات', 'واجب': 'واجب',
-    'بحت': 'بحث', 'بحوث': 'بحوث', 'بحث': 'بحث',
-    'مشروع': 'مشروع', 'مشاريع': 'مشاريع', 'مشروع': 'مشروع',
-    'تقارير': 'تقارير', 'تقرير': 'تقرير', 'تقارير': 'تقارير',
-    'اكسل': 'اكسل', 'اكسيل': 'اكسل', 'excel': 'excel',
-    'سيره': 'سيرة', 'سيفي': 'سي في', 'cv': 'cv',
-    'بوربوينت': 'بوربوينت', 'برزنتيشن': 'برزنتيشن', 'برسنتيشن': 'برزنتيشن',
-    'سكليف': 'سكليف', 'سكلبف': 'سكليف', 'sick': 'sick',
-    'مونتج': 'مونتاج', 'مونتاج': 'مونتاج', 'مونتاچ': 'مونتاج',
-    'تصميم': 'تصميم', 'تصمام': 'تصميم', 'تصمم': 'تصميم',
-}
-
-# ========== مرادفات الطلب ==========
-REQUEST_SYNONYMS = [
-    'ابي', 'ابغى', 'ابغي', 'أبي', 'أبغى', 'أبغي', 'اريد', 'أريد',
-    'احتاج', 'أحتاج', 'محتاج', 'محتاجة', 'محتاجه', 'بغيت', 'بغيت',
-    'اللي', 'اللي عنده', 'اللي تعرف', 'اللي يعرف', 'من عنده',
-    'من يعرف', 'من تعرف', 'مين يعرف', 'مين تعرف', 'مين عنده',
-    'حد يعرف', 'حد عنده', 'أحد يعرف', 'أحد عنده', 'فيه أحد',
-    'في احد', 'فيه حد', 'عندكم', 'عندك', 'تدلوني', 'يدلني',
-]
-
 # ========== تصنيفات الرسائل ==========
 CATEGORIES = {
     'اختبار': {'اختبار','امتحان','كويز','quiz','ميد','فاينل','mid','final','exam','test'},
@@ -186,98 +171,17 @@ CATEGORY_COLORS = {
 # ========== إعدادات البوت ==========
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
-def is_developer(user_id):
-    if DEVELOPER_ID and user_id == DEVELOPER_ID:
-        return True
-    return False
-
-def normalize_text(text):
-    """تطبيع النص: توحيد الحروف العربية/الإنجليزية"""
-    if not text:
-        return ""
-    text = text.lower()
-    text = text.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
-    text = text.replace('ة', 'ه')
-    text = text.replace('ى', 'ي')
-    return text
-
-def fix_spelling(text):
-    """تصحيح الأخطاء الإملائية الشائعة"""
-    words = text.split()
-    fixed_words = []
-    for word in words:
-        word_lower = word.lower()
-        if word_lower in SPELLING_FIX:
-            fixed_words.append(SPELLING_FIX[word_lower])
-        else:
-            fixed_words.append(word)
-    return ' '.join(fixed_words)
-
-def detect_intent(text):
-    """
-    كشف نية الرسالة - تحليل ذكي
-    يرجع: ('request', confidence) أو ('ad', confidence) أو ('question', confidence)
-    """
-    text_normalized = normalize_text(text)
-    
-    # مؤشرات الطلب
-    request_score = 0
-    for syn in REQUEST_SYNONYMS:
-        if normalize_text(syn) in text_normalized:
-            request_score += 1
-    
-    # مؤشرات الإعلان
-    ad_score = 0
-    ad_indicators = ['للتواصل', 'واتساب', 'wa.me', 'للطلب', 'نوفر', 'نقدم', 'خصم', 'تخفيض', 'لفترة محدودة', 'الكمية محدودة']
-    for ind in ad_indicators:
-        if normalize_text(ind) in text_normalized:
-            ad_score += 1
-    
-    # مؤشرات الخدمات الطلابية
-    service_keywords = ['واجب', 'بحث', 'مشروع', 'اختبار', 'بوربوينت', 'برزنتيشن', 'تلخيص', 'ترجمة', 'تصميم', 'سكليف']
-    service_score = 0
-    for kw in service_keywords:
-        if kw in text_normalized:
-            service_score += 1
-    
-    # تحليل النية النهائي
-    if ad_score > request_score and len(text) > 150:
-        return ('ad', 0.8)
-    elif request_score >= 1 and service_score >= 1:
-        return ('request', 0.9)
-    elif request_score >= 1:
-        return ('request', 0.6)
-    elif service_score >= 1:
-        return ('request', 0.5)
-    elif '?' in text or 'سؤال' in text or 'استفسار' in text:
-        return ('question', 0.7)
-    else:
-        return ('unknown', 0.3)
-
 def is_ad(text):
-    """فلتر ذكي للإعلانات"""
     if not text:
         return False
-    
     text_lower = text.lower()
-    intent, confidence = detect_intent(text)
-    
-    # إذا كان إعلان بثقة عالية
-    if intent == 'ad' and confidence >= 0.7:
-        return True
-    
-    # فحص الأنماط المعروفة
-    for pattern in AD_PATTERNS + LEARNED_AD_PATTERNS:
+    for pattern in AD_PATTERNS:
         if re.search(pattern, text_lower):
             return True
-    
-    # فحص الرسائل الطويلة جداً (غالباً إعلانات)
-    if len(text) > 300:
-        promo_words = ['خدمات', 'فريق', 'دكتور', 'رسائل', 'الماجستير', 'الدكتوراه', 'تحليل', 'تنسيق', 'ترجمه', 'توفير', 'المراجع', 'التواصل', 'خبرة', 'متخصص', 'محترف']
-        promo_count = sum(1 for word in promo_words if word in text_lower)
-        if promo_count >= 3:
+    if len(text) > 200:
+        ad_keywords_count = sum(1 for word in ['لخدمات', 'فريق', 'دكتور', 'رسائل', 'الماجستير', 'الدكتوراه', 'تحليل', 'تنسيق', 'ترجمه', 'توفير', 'المراجع', 'التواصل'] if word in text_lower)
+        if ad_keywords_count >= 2:
             return True
-    
     return False
 
 def get_category(keyword):
@@ -291,30 +195,12 @@ def get_category(keyword):
     return 'عام'
 
 def check_keywords_fast(text):
-    """
-    بحث ذكي مع تصحيح إملائي وفهم السياق
-    """
     if not text:
         return None
-    
-    # تصحيح الأخطاء الإملائية
-    fixed_text = fix_spelling(text)
-    text_lower = fixed_text.lower()
-    
-    # البحث في الكلمات المفتاحية
+    text_lower = text.lower()
     for kw in KEYWORDS_SET:
         if kw.lower() in text_lower:
             return kw
-    
-    # بحث ذكي: لو ما لقى تطابق كامل، يدور على كلمات مفتاحية أصغر
-    smart_keywords = ['ابي', 'ابغى', 'محتاج', 'احتاج', 'بغيت', 'اريد', 'من يسوي', 'مين يسوي', 'حد يسوي']
-    for kw in smart_keywords:
-        if kw.lower() in text_lower:
-            # تأكد إن فيه طلب خدمة حقيقي
-            intent, confidence = detect_intent(text)
-            if intent == 'request' and confidence >= 0.5:
-                return kw
-    
     return None
 
 async def get_group_link(chat):
@@ -327,7 +213,7 @@ async def get_group_link(chat):
 
 # ========== الحدث الرئيسي للبوت ==========
 async def main():
-    print("🚀 البوت الذكي يعمل والفلتر المتطور للإعلانات نشط...")
+    print("🚀 البوت يعمل...")
     print(f"👑 المطور: {DEVELOPER}")
     await client.start()
     print("✅ تم تسجيل الدخول بنجاح!")
@@ -336,7 +222,7 @@ async def main():
     async def handler(event):
         chat = await event.get_chat()
         
-        # ========== نظام الأوامر في القناة الخاصة ==========
+        # ========== نظام الأوامر ==========
         if hasattr(chat, 'id') and chat.id == TARGET_CHANNEL:
             text = event.raw_text or ""
             
@@ -345,200 +231,221 @@ async def main():
                 command = parts[0].lower()
                 argument = parts[1] if len(parts) > 1 else ""
                 
+                # ========== أمر الحالة ==========
                 if command == '/status':
+                    uptime = datetime.now() - datetime.strptime(BOT_STATUS['start_time'], '%Y-%m-%d %H:%M:%S')
+                    hours, remainder = divmod(uptime.seconds, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    
                     msg = f"""
-🤖 **حالة البوت الذكي**
+🟢 **حالة البوت**
 👑 المطور: **{DEVELOPER}**
-📊 الكلمات المفتاحية: **{len(KEYWORDS_SET)}**
-🛡 أنماط حظر الإعلانات: **{len(AD_PATTERNS)}**
-🧠 أنماط متعلمة: **{len(LEARNED_AD_PATTERNS)}**
-✅ البوت يعمل بكفاءة
+⏱ مدة التشغيل: **{hours}h {minutes}m {seconds}s**
+📊 المراقبة: **{'✅ نشطة' if BOT_STATUS['monitoring'] else '⛔ متوقفة'}**
+📨 الطلبات المجمعة: **{BOT_STATUS['total_requests']}**
+🛡 الإعلانات المحظورة: **{BOT_STATUS['total_ads_blocked']}**
+👥 المجموعات المراقبة: **{BOT_STATUS['total_groups']}**
+📋 الكلمات المفتاحية: **{len(KEYWORDS_SET)}**
+🛡 أنماط الإعلانات: **{len(AD_PATTERNS)}**
+🕐 آخر طلب: **{BOT_STATUS['last_request'] or 'لا يوجد'}**
                     """
                     await client.send_message(TARGET_CHANNEL, msg)
                     return
                 
+                # ========== أمر تشغيل المراقبة ==========
+                elif command == '/monitor':
+                    BOT_STATUS['monitoring'] = True
+                    await client.send_message(TARGET_CHANNEL, f"✅ **تم تشغيل المراقبة**\n👑 المطور: {DEVELOPER}")
+                    return
+                
+                # ========== أمر إيقاف المراقبة ==========
+                elif command == '/stopmonitor':
+                    BOT_STATUS['monitoring'] = False
+                    await client.send_message(TARGET_CHANNEL, f"⛔ **تم إيقاف المراقبة**\n👑 المطور: {DEVELOPER}")
+                    return
+                
+                # ========== أمر إضافة كلمة ==========
                 elif command == '/addkw' and argument:
                     if argument not in KEYWORDS_SET:
                         KEYWORDS_SET.add(argument)
-                        await client.send_message(TARGET_CHANNEL, f"✅ **تمت إضافة الكلمة:** `{argument}`\n👑 بواسطة: {DEVELOPER}")
+                        await client.send_message(TARGET_CHANNEL, f"✅ **تمت إضافة الكلمة:** `{argument}`\n👑 {DEVELOPER}")
                     else:
-                        await client.send_message(TARGET_CHANNEL, f"⚠️ الكلمة `{argument}` موجودة مسبقاً")
+                        await client.send_message(TARGET_CHANNEL, f"⚠️ الكلمة موجودة مسبقاً")
                     return
                 
+                # ========== أمر حذف كلمة ==========
                 elif command == '/delkw' and argument:
                     if argument in KEYWORDS_SET:
                         KEYWORDS_SET.remove(argument)
-                        await client.send_message(TARGET_CHANNEL, f"🗑 **تم حذف الكلمة:** `{argument}`\n👑 بواسطة: {DEVELOPER}")
+                        await client.send_message(TARGET_CHANNEL, f"🗑 **تم حذف الكلمة:** `{argument}`\n👑 {DEVELOPER}")
                     else:
-                        await client.send_message(TARGET_CHANNEL, f"⚠️ الكلمة `{argument}` غير موجودة")
+                        await client.send_message(TARGET_CHANNEL, f"⚠️ الكلمة غير موجودة")
                     return
                 
+                # ========== أمر عرض الكلمات ==========
                 elif command == '/listkw':
                     kw_list = "\n".join([f"• `{kw}`" for kw in sorted(KEYWORDS_SET)])
                     if len(kw_list) > 4000:
                         kw_list = kw_list[:4000] + "\n... (تم الاختصار)"
-                    await client.send_message(TARGET_CHANNEL, f"📋 **الكلمات المفتاحية ({len(KEYWORDS_SET)}):**\n{kw_list}\n\n👑 المطور: {DEVELOPER}")
+                    await client.send_message(TARGET_CHANNEL, f"📋 **الكلمات ({len(KEYWORDS_SET)}):**\n{kw_list}\n\n👑 {DEVELOPER}")
                     return
                 
+                # ========== أمر إضافة إعلان ==========
                 elif command == '/addad' and argument:
                     if argument not in AD_PATTERNS:
                         AD_PATTERNS.append(argument)
-                        await client.send_message(TARGET_CHANNEL, f"✅ **تمت إضافة نمط إعلان:** `{argument}`\n👑 بواسطة: {DEVELOPER}")
+                        await client.send_message(TARGET_CHANNEL, f"✅ **تمت إضافة نمط:** `{argument}`\n👑 {DEVELOPER}")
                     else:
-                        await client.send_message(TARGET_CHANNEL, f"⚠️ النمط `{argument}` موجود مسبقاً")
+                        await client.send_message(TARGET_CHANNEL, f"⚠️ النمط موجود مسبقاً")
                     return
                 
+                # ========== أمر حذف إعلان ==========
                 elif command == '/delad' and argument:
                     if argument in AD_PATTERNS:
                         AD_PATTERNS.remove(argument)
-                        await client.send_message(TARGET_CHANNEL, f"🗑 **تم حذف نمط إعلان:** `{argument}`\n👑 بواسطة: {DEVELOPER}")
-                    elif argument in LEARNED_AD_PATTERNS:
-                        LEARNED_AD_PATTERNS.remove(argument)
-                        await client.send_message(TARGET_CHANNEL, f"🗑 **تم حذف نمط متعلم:** `{argument}`\n👑 بواسطة: {DEVELOPER}")
+                        await client.send_message(TARGET_CHANNEL, f"🗑 **تم حذف النمط:** `{argument}`\n👑 {DEVELOPER}")
                     else:
-                        await client.send_message(TARGET_CHANNEL, f"⚠️ النمط `{argument}` غير موجود")
+                        await client.send_message(TARGET_CHANNEL, f"⚠️ النمط غير موجود")
                     return
                 
+                # ========== أمر عرض الإعلانات ==========
                 elif command == '/listad':
                     ad_list = "\n".join([f"• `{ad}`" for ad in AD_PATTERNS])
-                    msg = f"🛡 **أنماط حظر الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}"
-                    if LEARNED_AD_PATTERNS:
-                        learned_list = "\n".join([f"🧠 `{ad}`" for ad in LEARNED_AD_PATTERNS])
-                        msg += f"\n\n🧠 **أنماط متعلمة ({len(LEARNED_AD_PATTERNS)}):**\n{learned_list}"
-                    msg += f"\n\n👑 المطور: {DEVELOPER}"
-                    await client.send_message(TARGET_CHANNEL, msg)
+                    if len(ad_list) > 4000:
+                        ad_list = ad_list[:4000] + "\n..."
+                    await client.send_message(TARGET_CHANNEL, f"🛡 **أنماط الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}\n\n👑 {DEVELOPER}")
                     return
                 
-                elif command == '/analyze' and argument:
-                    intent, confidence = detect_intent(argument)
-                    await client.send_message(TARGET_CHANNEL, f"🔍 **تحليل النص:**\n📝 النص: `{argument}`\n🎯 النية: **{intent}**\n📊 الثقة: **{confidence*100:.0f}%**\n\n👑 المطور: {DEVELOPER}")
+                # ========== أمر تصفير الإحصائيات ==========
+                elif command == '/reset':
+                    BOT_STATUS['total_requests'] = 0
+                    BOT_STATUS['total_ads_blocked'] = 0
+                    BOT_STATUS['total_groups'] = 0
+                    BOT_STATUS['last_request'] = None
+                    BOT_STATUS['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    await client.send_message(TARGET_CHANNEL, f"🔄 **تم تصفير الإحصائيات**\n👑 {DEVELOPER}")
                     return
                 
+                # ========== أمر المساعدة ==========
                 elif command == '/help' or command == '/start':
                     help_msg = f"""
-🤖 **أوامر تحكم البوت الذكي** - 👑 {DEVELOPER}
+🤖 **بوت الخدمات الطلابية الذكي**
+👑 المطور: **{DEVELOPER}**
 
-📌 **إدارة الكلمات المفتاحية:**
-`/addkw كلمة` - إضافة كلمة مفتاحية
-`/delkw كلمة` - حذف كلمة مفتاحية
-`/listkw` - عرض كل الكلمات
+⚙️ **أوامر المراقبة:**
+`/monitor` - تشغيل المراقبة
+`/stopmonitor` - إيقاف المراقبة
+`/status` - حالة البوت والإحصائيات
+`/reset` - تصفير الإحصائيات
 
-🛡 **إدارة فلتر الإعلانات:**
+📌 **أوامر الكلمات المفتاحية:**
+`/addkw كلمة` - إضافة كلمة
+`/delkw كلمة` - حذف كلمة
+`/listkw` - عرض الكلمات
+
+🛡 **أوامر الإعلانات:**
 `/addad نمط` - إضافة نمط إعلان
 `/delad نمط` - حذف نمط إعلان
-`/listad` - عرض أنماط الحظر
+`/listad` - عرض الأنماط
 
-🧠 **أوامر الذكاء:**
-`/analyze نص` - تحليل نية النص
-
-⚙️ **أوامر عامة:**
-`/status` - حالة البوت
+📊 **أوامر عامة:**
 `/help` - هذه القائمة
                     """
                     await client.send_message(TARGET_CHANNEL, help_msg)
                     return
 
-        # ========== نظام التقاط الطلبات من المجموعات ==========
-        if not event.is_group:
-            return
-        
-        text = event.raw_text or ""
-        if not text:
-            return
-        
-        # تحليل النية
-        intent, confidence = detect_intent(text)
-        
-        # حظر الإعلانات
-        if is_ad(text):
-            # تعلم نمط جديد لو كان إعلان غير معروف
-            if intent == 'ad' and confidence >= 0.8:
-                words = text.lower().split()
-                for i in range(len(words)-2):
-                    phrase = ' '.join(words[i:i+3])
-                    if len(phrase) > 15 and phrase not in AD_PATTERNS and phrase not in LEARNED_AD_PATTERNS:
-                        if any(ad_word in phrase for ad_word in ['خصم', 'تخفيض', 'عرض', 'تواصل', 'خدماتنا', 'فريقنا']):
-                            LEARNED_AD_PATTERNS.append(phrase)
-                            print(f"🧠 تعلمت نمط إعلان جديد: {phrase}")
-                            break
-            return
-        
-        # لا تلتقط الأسئلة العامة
-        if intent == 'question':
-            return
-        
-        # لا تلتقط لو الثقة منخفضة جداً
-        if intent == 'unknown' and confidence < 0.5:
-            return
-        
-        # البحث عن الكلمات المفتاحية
-        keyword = check_keywords_fast(text)
-        
-        if keyword:
-            sender = await event.get_sender()
-            group_name = getattr(chat, 'title', 'مجموعة غير معروفة')
-            group_link = await get_group_link(chat)
+        # ========== نظام التقاط الطلبات ==========
+        if BOT_STATUS['monitoring'] and event.is_group:
+            text = event.raw_text or ""
+            if not text:
+                return
             
-            first = getattr(sender, 'first_name', '') or ''
-            last = getattr(sender, 'last_name', '') or ''
-            full_name = (first + ' ' + last).strip() or 'مجهول'
-            username = sender.username
-            user_id = sender.id
+            # حظر الإعلانات
+            if is_ad(text):
+                BOT_STATUS['total_ads_blocked'] += 1
+                return
             
-            user_display = "[" + full_name + "](tg://user?id=" + str(user_id) + ")"
+            # البحث عن الكلمات المفتاحية
+            keyword = check_keywords_fast(text)
             
-            if group_link:
-                group_display = "[" + group_name + "](" + group_link + ")"
-            else:
-                group_display = group_name
-            
-            category = get_category(keyword)
-            color = CATEGORY_COLORS.get(category, '📌')
-            
-            if len(text) > 400:
-                short_text = text[:400] + "\n... (تم اختصار الرسالة)"
-            else:
-                short_text = text
-            
-            msg = ""
-            msg += color + " **طلب جديد - " + category + "**\n\n"
-            msg += "📌 **الكلمة المفتاحية:** `" + keyword + "`\n"
-            msg += "📂 **التصنيف:** " + category + "\n"
-            msg += "🎯 **نية الرسالة:** طلب خدمة\n\n"
-            msg += "👤 **المرسل:** " + user_display + "\n"
-            
-            if username:
-                msg += "🔹 **اليوزر:** @" + username + "\n"
-            else:
-                msg += "🔹 **اليوزر:** لا يوجد\n"
+            if keyword:
+                # تحديث الإحصائيات
+                BOT_STATUS['total_requests'] += 1
+                BOT_STATUS['last_request'] = datetime.now().strftime('%H:%M:%S')
                 
-            msg += "🆔 **الايدي:** `" + str(user_id) + "`\n\n"
-            msg += "💬 **المجموعة:** " + group_display + "\n\n"
-            msg += "📝 **الرسالة:**\n```\n"
-            msg += short_text
-            msg += "\n```\n\n"
-            msg += "⏰ **الوقت:** " + str(event.date.strftime('%Y-%m-%d %H:%M:%S'))
-            msg += f"\n\n👑 المطور: {DEVELOPER}"
-            
-            try:
-                await client.send_message(TARGET_CHANNEL, msg, link_preview=False)
-                print("✅ [طلب طالب حقيقي] " + full_name + " | " + keyword)
-            except Exception as e:
-                print("❌ خطأ: " + str(e))
+                # إضافة المجموعة للمراقبة إذا كانت جديدة
+                group_id = getattr(chat, 'id', None)
+                if group_id and group_id not in MONITORED_GROUPS:
+                    MONITORED_GROUPS.add(group_id)
+                    BOT_STATUS['total_groups'] = len(MONITORED_GROUPS)
+                
+                sender = await event.get_sender()
+                group_name = getattr(chat, 'title', 'مجموعة غير معروفة')
+                group_link = await get_group_link(chat)
+                
+                first = getattr(sender, 'first_name', '') or ''
+                last = getattr(sender, 'last_name', '') or ''
+                full_name = (first + ' ' + last).strip() or 'مجهول'
+                username = sender.username
+                user_id = sender.id
+                
+                user_display = "[" + full_name + "](tg://user?id=" + str(user_id) + ")"
+                
+                if group_link:
+                    group_display = "[" + group_name + "](" + group_link + ")"
+                else:
+                    group_display = group_name
+                
+                category = get_category(keyword)
+                color = CATEGORY_COLORS.get(category, '📌')
+                
+                if len(text) > 400:
+                    short_text = text[:400] + "\n... (تم اختصار الرسالة)"
+                else:
+                    short_text = text
+                
+                msg = ""
+                msg += color + " **طلب جديد - " + category + "**\n\n"
+                msg += "📌 **الكلمة:** `" + keyword + "`\n"
+                msg += "📂 **التصنيف:** " + category + "\n\n"
+                msg += "👤 **المرسل:** " + user_display + "\n"
+                
+                if username:
+                    msg += "🔹 **اليوزر:** @" + username + "\n"
+                else:
+                    msg += "🔹 **اليوزر:** لا يوجد\n"
+                    
+                msg += "🆔 **الايدي:** `" + str(user_id) + "`\n\n"
+                msg += "💬 **المجموعة:** " + group_display + "\n\n"
+                msg += "📝 **الرسالة:**\n```\n"
+                msg += short_text
+                msg += "\n```\n\n"
+                msg += "⏰ **الوقت:** " + str(event.date.strftime('%Y-%m-%d %H:%M:%S'))
+                msg += f"\n\n👑 المطور: {DEVELOPER}"
+                
+                try:
+                    await client.send_message(TARGET_CHANNEL, msg, link_preview=False)
+                    print("✅ [طلب] " + full_name + " | " + keyword)
+                except Exception as e:
+                    print("❌ خطأ: " + str(e))
 
     await client.run_until_disconnected()
 
-# ========== سيرفر الويب للبقاء على قيد الحياة ==========
+# ========== سيرفر الويب ==========
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return f"🤖 البوت الذكي يعمل بكفاءة 24/7! | 👑 المطور: {DEVELOPER}"
+    return f"🤖 البوت يعمل 24/7 | 👑 {DEVELOPER}"
+
+@app.route('/status')
+def web_status():
+    return json.dumps(BOT_STATUS, ensure_ascii=False, indent=2)
 
 def run_web_server():
     app.run(host='0.0.0.0', port=10000)
 
-# ========== التشغيل المباشر ==========
+# ========== التشغيل ==========
 if __name__ == '__main__':
     Thread(target=run_web_server).start()
     asyncio.run(main())
