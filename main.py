@@ -11,7 +11,7 @@ API_ID = int(os.environ.get('API_ID', 35366951))
 API_HASH = os.environ.get('API_HASH', 'd079f23211d239c1ebb67eac4dc5095e')
 SESSION_STRING = '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A='
 TARGET_CHANNEL = int(os.environ.get('TARGET_CHANNEL', -1003948605081))
-DEVELOPER = "بولد"
+DEVELOPER = "العبدول الشدادي"
 DEVELOPER_ID = None
 # =================================================
 
