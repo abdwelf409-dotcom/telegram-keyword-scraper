@@ -11,7 +11,7 @@ API_ID = int(os.environ.get('API_ID', 35366951))
 API_HASH = os.environ.get('API_HASH', 'd079f23211d239c1ebb67eac4dc5095e')
 SESSION_STRING = '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A='
 TARGET_CHANNEL = int(os.environ.get('TARGET_CHANNEL', -1003948605081))
-DEVELOPER = "العباد الشدادي"
+DEVELOPER = "بولد"
 DEVELOPER_ID = None
 # =================================================
 
@@ -339,8 +339,6 @@ async def main():
         # ========== نظام الأوامر في القناة الخاصة ==========
         if hasattr(chat, 'id') and chat.id == TARGET_CHANNEL:
             text = event.raw_text or ""
-            sender = await event.get_sender()
-            user_id = sender.id
             
             if text.startswith('/'):
                 parts = text.split(' ', 1)
@@ -403,9 +401,9 @@ async def main():
                 
                 elif command == '/listad':
                     ad_list = "\n".join([f"• `{ad}`" for ad in AD_PATTERNS])
-                    learned_list = "\n".join([f"🧠 `{ad}`" for ad in LEARNED_AD_PATTERNS])
                     msg = f"🛡 **أنماط حظر الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}"
                     if LEARNED_AD_PATTERNS:
+                        learned_list = "\n".join([f"🧠 `{ad}`" for ad in LEARNED_AD_PATTERNS])
                         msg += f"\n\n🧠 **أنماط متعلمة ({len(LEARNED_AD_PATTERNS)}):**\n{learned_list}"
                     msg += f"\n\n👑 المطور: {DEVELOPER}"
                     await client.send_message(TARGET_CHANNEL, msg)
@@ -413,7 +411,7 @@ async def main():
                 
                 elif command == '/analyze' and argument:
                     intent, confidence = detect_intent(argument)
-                    await client.send_message(TARGET_CHANNEL, f"🔍 **تحليل النص:**\n📝 النص: `{argument}`\n🎯 النية: **{intent}**\n📊 الثقة: **{confidence*100:.0f}%**")
+                    await client.send_message(TARGET_CHANNEL, f"🔍 **تحليل النص:**\n📝 النص: `{argument}`\n🎯 النية: **{intent}**\n📊 الثقة: **{confidence*100:.0f}%**\n\n👑 المطور: {DEVELOPER}")
                     return
                 
                 elif command == '/help' or command == '/start':
@@ -438,9 +436,8 @@ async def main():
 `/help` - هذه القائمة
                     """
                     await client.send_message(TARGET_CHANNEL, help_msg)
-                    return                
-                
-        
+                    return
+
         # ========== نظام التقاط الطلبات من المجموعات ==========
         if not event.is_group:
             return
@@ -456,7 +453,6 @@ async def main():
         if is_ad(text):
             # تعلم نمط جديد لو كان إعلان غير معروف
             if intent == 'ad' and confidence >= 0.8:
-                # استخراج كلمات مفتاحية من الإعلان
                 words = text.lower().split()
                 for i in range(len(words)-2):
                     phrase = ' '.join(words[i:i+3])
