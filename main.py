@@ -439,7 +439,7 @@ async def main():
                     """
                     await client.send_message(TARGET_CHANNEL, help_msg)
                     return                
-                return
+                
         
         # ========== نظام التقاط الطلبات من المجموعات ==========
         if not event.is_group:
