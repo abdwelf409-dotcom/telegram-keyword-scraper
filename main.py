@@ -1,4 +1,4 @@
-Enterimport asyncio
+import asyncio
 import os
 import re
 import json
@@ -8,16 +8,16 @@ from telethon.sessions import StringSession
 from threading import Thread
 from flask import Flask
 
-# ==================== إعدادات ====================
+# ==================== إعدادات المتغيرات ====================
 API_ID = int(os.environ.get('API_ID', 35366951))
 API_HASH = os.environ.get('API_HASH', 'd079f23211d239c1ebb67eac4dc5095e')
-SESSION_STRING = '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A='
+SESSION_STRING = os.environ.get('SESSION_STRING', '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A=')
 TARGET_CHANNEL = int(os.environ.get('TARGET_CHANNEL', -1003948605081))
-ADMIN_ID = int(os.environ.get('ADMIN_ID', 0))  # ضع ايدي حسابك هنا لحماية الأوامر
+ADMIN_ID = int(os.environ.get('ADMIN_ID', 0))
 DEVELOPER = "العباد الشدادي"
-# =================================================
+PORT = int(os.environ.get('PORT', 10000))
+# =========================================================
 
-# ========== حالة البوت ==========
 BOT_STATUS = {
     'running': True,
     'monitoring': True,
@@ -30,22 +30,28 @@ BOT_STATUS = {
 
 MONITORED_GROUPS = set()
 
-# ========== فلتر الإعلانات ==========
+# ========== فلتر الإعلانات الكبيرة والأنماط ==========
 AD_PATTERNS = [
     r'للبيع', r'بيع', r'اشتري', r'سعر', r'خصم', r'عرض\s+محدود',
     r'تخفيض', r'متجر', r'متاح\s+الآن', r'توصيل', r'شحن', r'مجاني',
     r'وكيل', r'موزع', r'دعاية', r'اعلان', r'إعلان', r'تسويق',
-    r'كوبون', r'خصومات', r'تخفيضات', r'تنزيلات',
-    r'اشترك', r'فولو', r'تابعني', r'حسابي', r'تبادل',
+    r'كوبون', r'خصومات', r'تخفيضات', r'تنزيلات', r'اشترك', r'فولو',
     r'معلن', r'معلنين', r'اعلانات', r'إعلانات', r'مدفوع', r'برعاية',
-    r'عرض\s+خاص', r'لفترة\s+محدودة', r'الكمية\s+محدودة',
-    r'اطلب\s+الآن', r'تواصل\s+واتس', r'رقم\s+التواصل',
-    r'للتواصل\s+عبر', r'قناة\s+التيليجرام', r'انضم\s+إلينا',
-    r'خدماتنا\s+الرسمية', r'اعتماد', r'مرخص', r'ضمانات\s+قوية',
-    r'نقدم\s+لكم', r'نوفر\s+لكم', r'فريق\s+مختص', r'نخبة\s+من',
-    r'أسعارنا\s+منافسة', r'لإنجاز\s+مهامكم', r'خدمة\s+العملاء',
+    r'عرض\s+خاص', r'لفترة\s+محدودة', r'الكمية\s+محدودة', r'اطلب\s+الآن',
+    r'wa\.me', r'api\.whatsapp\.com', r'whatsapp', r'واتساب', r'تواصل\s+واتس',
+    r'رقم\s+التواصل', r'للتواصل\s+عبر', r'قناة\s+التيليجرام', r'انضم\s+إلينا',
+    r'خدماتنا\s+الرسمية', r'اعتماد', r'مرخص', r'ضمانات\s+قوية', r'ضمان\s+الدرجة',
+    r'نقدم\s+لكم', r'نوفر\s+لكم', r'فريق\s+مختص', r'نخبة\s+من', r'كادر\s+تعليمي',
+    r'أسعارنا\s+منافسة', r'لإنجاز\s+مهامكم', r'خدمة\s+العملاء', r'فريقنا',
     r'خدمات\s+البحث\s+العلمي', r'الدراسات\s+العليا', r'للطلب\s+والاستفسار',
-    r'wa\.me', r'لخدمات', r'فريقنا', r'خبراء\s+أكاديميين',
+    r'خبراء\s+أكاديميين', r'جودة\nعالية', r'سرية\s+تامة', r'دكاترة\s+متخصصين',
+    r'دخل\s+يومي', r'تركت\s+وظيفتي', r'اقسم\s+برب', r'من\s+نفس\s+جوالي',
+    r'مشروع\s+ربحي', r'ارباح\s+يومية', r'أرباح\s+يومية', r'عمل\s+من\s+المنزل'
+]
+
+MARKETING_WORDS = [
+    'خدمات', 'فريق', 'دكتور', 'دكاترة', 'ماجستير', 'دكتوراه', 'تحليل', 
+    'تنسيق', 'ترجمة', 'توفير', 'المراجع', 'التواصل', 'جودة', 'ضمان', 'خبرة'
 ]
 
 # ========== الكلمات المفتاحية ==========
@@ -63,102 +69,27 @@ KEYWORDS_SET = {
     'من يسوي واجبات', 'من يسوي مشاريع', 'من يسوي بحوث', 'من يسوي تقارير', 'من يسوي تلخيص', 
     'من يسوي اختبارات', 'من يسوي تقرير تدريب', 'من يسوي مشروع تخرج', 'من يسوي عروض احترافية', 
     'من يسوي Excel', 'من يسوي اكسل', 'من يسوي Access', 'من يسوي اكسس', 'من يسوي APA', 
-    'من عندها رقم خدمات طلابية', 'من عندها شخص مجرب', 'من عنده شخص ثقة للخدمات الطلابية', 
-    'حد عنده حد ثقة يسوي واجبات', 'حد عنده حد ثقة يسوي مشاريع', 'حد عنده حد ثقة يسوي بحوث', 
-    'حد عنده حد ثقة يسوي سكليف', 'حد عنده حد ثقة يسوي تقارير', 'حد عنده مصمم فيديو', 
-    'حد عنده مصمم دعوات', 'حد يعرف أحد يحل واجبات', 'حد يعرف أحد يحل اختبارات', 
-    'حد يعرف أحد يسوي مشاريع', 'حد يعرف أحد يسوي بحوث', 'حد يعرف أحد يسوي عروض', 
-    'حد يعرف أحد يصمم فيديو', 'حد يعرف أحد يصمم دعوة زواج', 'أحد يعرف خدمات طلابية', 
-    'أحد عنده خدمات طلابية', 'أحد عنده رقم وحدة تسوي بحوث', 'أحد مجرب خدمات طلابية', 
-    'أحد يسوي واجبات', 'أحد يسوي Word', 'أحد يضمن الدرجة', 'أحد متفرغ اليوم', 
+    'من عنده شخص ثقة للخدمات الطلابية', 'حد عنده حد ثقة يسوي واجبات', 'حد عنده حد ثقة يسوي مشاريع', 
     'أبي حد يسوي واجبات', 'أبي حد يسوي مشاريع', 'أبي حد يسوي بحث', 'أبي حد يسوي سكليف', 
     'أبي حد يسوي تقرير', 'أبي حد يسوي عرض بوربوينت', 'أبي حد يسوي برزنتيشن', 
-    'أبي حد يسوي تكليف', 'أبي أحد يسوي مشروع', 'أبي أحد يسوي مشروع تخرج', 
-    'أبي أحد يسوي واجبات', 'أبي أحد يسوي بحث', 'أبي أحد يكتب بحث كامل', 
-    'أبي أحد يسوي برزنتيشن', 'أبي أحد يسوي عرض بوربوينت', 'أبي أحد يسوي سكليف', 
-    'أبي أحد يسوي تقرير', 'أبي أحد يسوي مشاريع الجامعة', 'أبي أحد يخلص المشروع كامل', 
-    'أبي أحد يخلص الأبحاث', 'أبي أحد يخلص التكليف', 'أبي أحد يخلص واجبات الجامعة', 
-    'أبي أحد يخلص لي الواجب', 'أبي أحد يخلص لي المشروع', 'أبي أحد يخلص لي البحث', 
-    'أبي أحد يخلص لي كل موادي', 'أبي أحد يحل الكويز', 'أبي أحد يحل الاختبار', 
-    'أبي أحد ينجز اليوم', 'أبي أحد يخلص قبل الموعد', 'أبي أحد شغله احترافي', 
-    'أبي أحد شغله مضمون', 'أبي أحد أسعاره مناسبة', 'أبي شخص ثقة', 'أبي شخص مضمون', 
-    'أبي شغل مرتب وسريع', 'أبي خدمات جامعية كاملة', 'أبي تنسيق بحث', 'أبي تدقيق لغوي', 
-    'محتاج حد يسوي لي واجبات', 'محتاجة حد يسوي لي الواجب', 'محتاجة حد يسوي لي مشروع', 
-    'محتاجة حد يسوي لي بحث', 'محتاجة أحد يسوي بحث', 'محتاجة أحد يخلص التكليف', 
-    'يعيال حد عنده أحد ثقة', 'يعيال من يعرف أحد يسوي واجبات', 'يعيال من يعرف أحد يسوي مشاريع', 
-    'يعيال من يعرف أحد يسوي بحوث', 'ابغي حد يسوي بحوث', 'ابغي حد يسوي برزنتيشن', 
-    'ابغي حد يسوي بوربوينت', 'ابغي حد يسوي تقرير', 'ابغي حد يسوي مشروع', 
-    'ابغي حد يسوي واجبات', 'ابغي حد يسوي تكاليف', 'ابغي حد يسوي سكليف', 
-    'ابغي حد يسوي عرض', 'بغيت حد فاهم في البحوث', 'بغيت حد فاهم في المشاريع', 
-    'بغيت حد فاهم في التقارير', 'بغيت حد ثقة', 'ابي حد يصمم لي فيديو', 
-    'ابي حد يسوي مونتاج', 'ابي حد يصمم لي مونتاج', 'ابي حد يصمم لي دعوة زواج', 
-    'ابي حد يصمم لي دعوة', 'ابي حد يصمم اعلان', 'ابي حد يصمم بوستر', 
-    'ابي حد يصمم شعار', 'ابي حد يصمم لوجو', 'ابي حد يصمم هوية بصرية', 
-    'ابي حد يصمم انفوجرافيك', 'ابي حد يصمم سيرة ذاتية', 'ابي حد يصمم برزنتيشن', 
-    'ابي حد يسوي تصميم احترافي', 'ابي حد يمنتج فيديو', 'ابي حد يسوي موشن جرافيك', 
-    'ابي حد يصمم ريلز', 'ابي حد يصمم سناب', 'ابي حد يصمم منشورات', 
-    'ابي حد يصمم بطاقة دعوة', 'من يعرف مصمم فيديو', 'من يعرف مصمم دعوات', 
-    'من يعرف مصمم ثقة', 'بنات تعرفون مصمم فيديو', 'بنات تعرفون أحد يصمم دعوات', 
-    'من يسوي اكسل', 'أبي أحد يسوي اكسل', 'أبي أحد يسوي Excel', 'ابغي حد يسوي اكسل', 
-    'من يعرف أحد يسوي اكسل', 'تعرفون أحد يسوي اكسل', 'من يسوي باوربوينت', 'من يسوي بوربوينت', 
-    'أبي أحد يسوي باوربوينت', 'ابغي حد يسوي باوربوينت', 'من يعرف أحد يسوي باوربوينت', 
-    'تعرفون أحد يسوي باوربوينت', 'من يسوي وورد', 'من يسوي Word', 'أبي أحد يسوي وورد', 
-    'ابغي حد يسوي وورد', 'من يعرف أحد يسوي وورد', 'تعرفون أحد يسوي وورد', 
-    'من يعرف أحد يسوي اكسس', 'تعرفون أحد يسوي اكسس', 'من يسوي برزنتيشن احترافي', 
-    'من يسوي بوربوينت احترافي', 'أبي أحد يسوي سيرة ذاتية', 'من يسوي CV', 'من يسوي سيفي', 
-    'أبي أحد يسوي CV', 'أبي أحد يسوي سيفي', 'بنات احد يعرف يسوي cv بنظام ats بسعر كويس', 
-    'مين يسوي cv', 'مين يسوي سي في', 'مين يسوي سيرة ذاتية', 'مين يسوي cv ats', 
-    'مين يعرف يسوي cv', 'مين يعرف يسوي سي في', 'مين يعرف يسوي سيرة ذاتية', 
-    'مين يعرف حد يسوي cv', 'مين يعرف احد يسوي سي في', 'مين يضبط لي cv', 
-    'مين يسملي cv', 'مين يدلني على حد يسوي cv', 'مين يقدر يسوي لي', 
-    'حد يعرف أحد', 'أحد يعرف', 'تعرفون أحد', 'تعرفوا أحد', 'فيه أحد', 
-    'مين يعرف', 'مين يدلني', 'أبي أحد', 'أبي شخص', 'أبي رقم', 'أبي مكتب', 
-    'أبي خدمات', 'أبي ثقة', 'أبي مضمون', 'أبي سريع', 'أبي اليوم', 'أبي خلال ساعات', 
-    'أبي يخلصه اليوم', 'أبي أحد يسويه', 'أبي أحد ينجزه', 'أبي أحد يحله', 
-    'أبي أحد يكتبه', 'أبي أحد يصممه', 'أبي أحد يرتبه', 'أبي أحد يراجع', 
-    'أبي أحد يترجمه', 'أبي أحد يدققه', 'أبي أحد يساعدني', 'مين يسوي', 'مين يحل', 
-    'مين يكتب', 'مين يصمم', 'مين ينجز', 'مين يترجم', 'مين يدقق', 'مين يخلص', 
-    'حد يسوي', 'حد يحل', 'حد يكتب', 'حد يصمم', 'حد ينجز', 'حد يترجم', 'حد يدقق', 'حد يخلص',
-    'ابي', 'ابغي', 'ابغى', 'محتاج', 'محتاجه', 'محتاجة', 'بغيت', 'اريد',
-    'من يحل', 'من يصمم', 'يساعدني', 'مساعدة', 'خدمات طلابية', 'خدمة طلابية',
-    'حل اختبار', 'حل اختبارات', 'ابي حل اختبار', 'ابي احد يحل اختبار',
-    'من يحل اختبار', 'مين يحل اختبار', 'اختبار اونلاين', 'اختبار الكتروني',
-    'امتحان', 'امتحانات', 'كويز', 'كويزات', 'quiz', 'quizzes', 'mid', 'ميد',
-    'final', 'فاينل', 'اختبار نهائي', 'اختبار نصفي', 'حل واجب', 'حل واجبات',
-    'واجب', 'واجبات', 'تكليف', 'تكاليف', 'اسايمنت', 'assignment', 'assignments',
-    'نشاط', 'انشطة', 'مشروع مادة', 'مشروع', 'مشاريع', 'مشروع تخرج', 'تخرج',
-    'بحث', 'بحوث', 'بحث علمي', 'ورقة بحثية', 'تقرير', 'تقارير', 'رسالة ماجستير',
-    'رسالة دكتوراه', 'تلخيص', 'ملخص', 'ملخصات', 'تلخيص كتاب', 'تلخيص محاضرات',
-    'تلخيص مقرر', 'ترجمة', 'مترجم', 'ترجمة بحث', 'ترجمة ملف', 'ترجمة pdf',
-    'ترجمة انجليزي', 'ترجمة عربي', 'بوربوينت', 'باوربوينت', 'powerpoint', 'ppt',
-    'عرض تقديمي', 'برزنتيشن', 'presentation', 'سلايدات', 'شرائح', 'تصميم', 'مصمم',
-    'تصميم احترافي', 'تصميم اعلان', 'تصميم بوستر', 'تصميم شعار', 'تصميم لوجو',
-    'انفوجرافيك', 'بروشور', 'سيرة ذاتية', 'cv', 'سي في', 'تصميم cv', 'كتابة cv',
-    'تعديل cv', 'السيرة الذاتية', 'وورد', 'word', 'اكسل', 'excel', 'pdf',
-    'بي دي اف', 'برمجة', 'موقع', 'م مواقع', 'تطبيق', 'تطبيقات', 'كود', 'اكواد',
-    'مشروع برمجي', 'مشروع تخرج برمجة', 'حل اسايمنت', 'حل تكليف', 'حل نشاط',
-    'حل مشروع', 'سوي لي مشروع', 'سوي لي بحث', 'سوي لي تقرير', 'سوي لي واجب',
-    'سوي لي عرض', 'سوي لي بوربوينت', 'سوي لي cv', 'ابغى حل', 'ابي حل',
-    'احتاج حل', 'محتاج حل', 'ابي احد يساعدني', 'احتاج من يسوي', 'من تتعامل',
-    'مين تتعامل', 'دلوني', 'دلوني على احد', 'عندكم احد', 'تعرفون احد', 'تعرفوا احد',
-    'يسوي سكليف', 'سكليف', 'sick leave', 'اجازة مرضية', 'صحتي', 'حد يعرف',
-    'من يعرف', 'مين يعرف', 'احد يعرف', 'في احد يعرف', 'في حد يعرف', 'من يسوي',
-    'مين يسوي', 'حد يسوي', 'احد يسوي', 'من يقدر', 'مين يقدر',
+    'أبي أحد يسوي مشروع تخرج', 'أبي أحد يخلص لي الواجب', 'أبي أحد يحل الكويز',
+    'محتاج حد يسوي لي واجبات', 'محتاجة حد يسوي لي الواجب', 'محتاجة حد يسوي لي مشروع',
+    'يعيال من يعرف أحد يسوي واجبات', 'ابغي حد يسوي بحوث', 'ابغي حد يسوي برزنتيشن',
+    'من يسوي cv', 'من يسوي سيفي', 'مين يسوي cv', 'مين يحل اختبار', 'ابي حل اختبار'
 }
 
-# ========== تصنيفات الرسائل ==========
 CATEGORIES = {
     'اختبار': {'اختبار','امتحان','كويز','quiz','ميد','فاينل','mid','final','exam','test'},
-    'واجب': {'واجب','تكليف','اسايمنت','assignment','homework','hw'},
+    'واجب': {'واجب','تكليف','اسايمنت','assignment','homework'},
     'مشروع': {'مشروع','تخرج','project','graduation'},
-    'بحث': {'بحث','تقرير','research','report','thesis'},
+    'بحث': {'بحث','تقرير','research','report'},
     'تلخيص': {'تلخيص','ملخص','summary'},
     'ترجمة': {'ترجمة','translate','translation'},
     'بوربوينت': {'بوربوينت','powerpoint','presentation','عرض'},
-    'تصميم': {'تصميم','design','logo','مصمم','فيديو','مونتاج'},
+    'تصميم': {'تصميم','design','logo','مصمم','فيديو'},
     'cv': {'cv','سيرة ذاتية','resume','سي في'},
-    'برمجة': {'برمجة','برمج','programming','code','موقع','تطبيق'},
-    'سكليف': {'سكليف','sick leave','اجازة مرضية','sick','تقرير طبي'},
+    'برمجة': {'برمجة','code','موقع','تطبيق'},
+    'سكليف': {'سكليف','sick leave','اجازة مرضية'},
     'عام': set(),
 }
 
@@ -169,7 +100,6 @@ CATEGORY_COLORS = {
     'برمجة': '⚪', 'سكليف': '🩺', 'عام': '📌',
 }
 
-# ========== إعدادات البوت ==========
 client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 def is_ad(text):
@@ -179,21 +109,12 @@ def is_ad(text):
     for pattern in AD_PATTERNS:
         if re.search(pattern, text_lower):
             return True
-    if len(text) > 200:
-        ad_keywords_count = sum(1 for word in ['لخدمات', 'فريق', 'دكتور', 'رسائل', 'الماجستير', 'الدكتوراه', 'تحليل', 'تنسيق', 'ترجمه', 'توفير', 'المراجع', 'التواصل'] if word in text_lower)
-        if ad_keywords_count >= 2:
-            return True
+    if "wa.me/" in text_lower or "t.me/" in text_lower or "chat.whatsapp.com" in text_lower:
+        return True
+    marketing_count = sum(1 for word in MARKETING_WORDS if word in text_lower)
+    if marketing_count >= 3:
+        return True
     return False
-
-def get_category(keyword):
-    kw_lower = keyword.lower()
-    for cat, words in CATEGORIES.items():
-        if cat == 'عام':
-            continue
-        for w in words:
-            if w.lower() in kw_lower:
-                return cat
-    return 'عام'
 
 def check_keywords_fast(text):
     if not text:
@@ -204,13 +125,14 @@ def check_keywords_fast(text):
             return kw
     return None
 
-async def get_group_link(chat):
-    try:
-        if hasattr(chat, 'username') and chat.username:
-            return "https://t.me/" + str(chat.username)
-    except:
-        pass
-    return None
+def get_category(keyword):
+    kw_lower = keyword.lower()
+    for cat, words in CATEGORIES.items():
+        if cat == 'عام': continue
+        for w in words:
+            if w.lower() in kw_lower:
+                return cat
+    return 'عام'
 
 def build_main_menu():
     msg = f"""
@@ -220,13 +142,13 @@ def build_main_menu():
 ⚙️ **أوامر المراقبة:**
 • `/monitor` - تشغيل المراقبة
 • `/stopmonitor` - إيقاف المراقبة
-• `/status` - حالة البوت والإحصائيات
+• `/status` - حالة البوت
 • `/reset` - تصفير الإحصائيات
 
 📌 **أوامر الكلمات المفتاحية:**
-• `/addkw` - إضافة كلمة (مثال: `/addkw بحث`)
-• `/delkw` - حذف كلمة (مثال: `/delkw بحث`)
-• `/listkw` - عرض الكلمات المفتاحية
+• `/addkw` - إضافة كلمة
+• `/delkw` - حذف كلمة
+• `/listkw` - عرض الكلمات
 
 🛡 **أوامر الإعلانات:**
 • `/addad` - إضافة نمط إعلان
@@ -234,70 +156,36 @@ def build_main_menu():
 • `/listad` - عرض أنماط الإعلانات
 
 📊 **أوامر عامة:**
-• `/help` - عرض هذه القائمة
-    """
-    
+• `/help` - عرض هذا الدليل
+"""
     buttons = [
-        [
-            Button.inline("📊 حالة البوت", data=b"status"),
-            Button.inline("⚙️ المراقبة (تشغيل/إيقاف)", data=b"toggle_monitor")
-        ],
-        [
-            Button.inline("📋 قائمة الكلمات المفتاحية", data=b"listkw"),
-            Button.inline("🛡 أنماط الإعلانات", data=b"listad")
-        ],
-        [
-            Button.inline("🔄 تصفير الإحصائيات", data=b"reset")
-        ]
+        [Button.inline("📊 حالة البوت", data=b"status"), Button.inline("⚙️ تشغيل/إيقاف", data=b"toggle_monitor")],
+        [Button.inline("📋 الكلمات المفتاحية", data=b"listkw"), Button.inline("🛡 فلاتر الإعلانات", data=b"listad")],
+        [Button.inline("🔄 تصفير الإحصائيات", data=b"reset")]
     ]
     return msg, buttons
 
-# ========== الحدث الرئيسي للبوت ==========
-async def main():
-    print("🚀 البوت يعمل...")
-    print(f"👑 المطور: {DEVELOPER}")
+async def start_bot():
+    print(f"🚀 جاري تشغيل البوت | المطور: {DEVELOPER}")
     await client.start()
-    
-    me = await client.get_me()
-    owner_id = me.id
-    print(f"✅ تم تسجيل الدخول بنجاح باسم: {me.first_name} (ID: {owner_id})")
 
-    # التعامل مع أزرار الشاشة (Callback Query Handler)
     @client.on(events.CallbackQuery)
     async def callback_handler(event):
         data = event.data.decode('utf-8')
-        
         if data == "status":
-            uptime = datetime.now() - datetime.strptime(BOT_STATUS['start_time'], '%Y-%m-%d %H:%M:%S')
-            hours, remainder = divmod(uptime.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            status_text = f"""
-🟢 **حالة البوت**
-👑 المطور: **{DEVELOPER}**
-⏱ مدة التشغيل: **{hours}h {minutes}m {seconds}s**
-📊 المراقبة: **{'✅ نشطة' if BOT_STATUS['monitoring'] else '⛔ متوقفة'}**
-📨 الطلبات المجمعة: **{BOT_STATUS['total_requests']}**
-🛡 الإعلانات المحظورة: **{BOT_STATUS['total_ads_blocked']}**
-👥 المجموعات المراقبة: **{BOT_STATUS['total_groups']}**
-📋 الكلمات المفتاحية: **{len(KEYWORDS_SET)}**
-🛡 أنماط الإعلانات: **{len(AD_PATTERNS)}**
-🕐 آخر طلب: **{BOT_STATUS['last_request'] or 'لا يوجد'}**
-            """
-            await event.respond(status_text)
+            await event.respond(f"📊 **الطلبات:** {BOT_STATUS['total_requests']} | 🛡 **الإعلانات المحظورة:** {BOT_STATUS['total_ads_blocked']}\n👑 {DEVELOPER}")
         elif data == "toggle_monitor":
             BOT_STATUS['monitoring'] = not BOT_STATUS['monitoring']
-            state = "✅ تم تشغيل المراقبة" if BOT_STATUS['monitoring'] else "⛔ تم إيقاف المراقبة"
+            state = "✅ تم التشغيل" if BOT_STATUS['monitoring'] else "⛔ تم الإيقاف"
             await event.respond(f"{state}\n👑 المطور: {DEVELOPER}")
         elif data == "listkw":
             kw_list = "\n".join([f"• `{kw}`" for kw in sorted(KEYWORDS_SET)])
-            if len(kw_list) > 4000:
-                kw_list = kw_list[:4000] + "\n... (تم الاختصار)"
-            await event.respond(f"📋 **الكلمات المفتاحية ({len(KEYWORDS_SET)}):**\n{kw_list}\n\n👑 {DEVELOPER}")
+            if len(kw_list) > 4000: kw_list = kw_list[:4000] + "\n..."
+            await event.respond(f"📋 **الكلمات ({len(KEYWORDS_SET)}):**\n{kw_list}")
         elif data == "listad":
             ad_list = "\n".join([f"• `{ad}`" for ad in AD_PATTERNS])
-            if len(ad_list) > 4000:
-                ad_list = ad_list[:4000] + "\n..."
-            await event.respond(f"🛡 **أنماط الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}\n\n👑 {DEVELOPER}")
+            if len(ad_list) > 4000: ad_list = ad_list[:4000] + "\n..."
+            await event.respond(f"🛡 **أنماط الحظر ({len(AD_PATTERNS)}):**\n{ad_list}")
         elif data == "reset":
             BOT_STATUS['total_requests'] = 0
             BOT_STATUS['total_ads_blocked'] = 0
@@ -313,212 +201,108 @@ async def main():
         sender_id = getattr(sender, 'id', None)
         text = event.raw_text or ""
 
-        # ========== نظام الأوامر ==========
         is_target_channel = hasattr(chat, 'id') and chat.id == TARGET_CHANNEL
         is_private_msg = event.is_private
-        is_authorized_user = (sender_id == ADMIN_ID) or (sender_id == owner_id) or event.out
 
         if (is_target_channel or is_private_msg) and text.startswith('/'):
-            if is_private_msg and not is_authorized_user:
-                return
-
             parts = text.split(' ', 1)
             command = parts[0].lower()
             argument = parts[1] if len(parts) > 1 else ""
-            
             reply_target = event.chat_id
 
-            # ========== أمر الحالة ==========
             if command == '/status':
                 uptime = datetime.now() - datetime.strptime(BOT_STATUS['start_time'], '%Y-%m-%d %H:%M:%S')
                 hours, remainder = divmod(uptime.seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
-                
-                msg = f"""
-🟢 **حالة البوت**
-👑 المطور: **{DEVELOPER}**
-⏱ مدة التشغيل: **{hours}h {minutes}m {seconds}s**
-📊 المراقبة: **{'✅ نشطة' if BOT_STATUS['monitoring'] else '⛔ متوقفة'}**
-📨 الطلبات المجمعة: **{BOT_STATUS['total_requests']}**
-🛡 الإعلانات المحظورة: **{BOT_STATUS['total_ads_blocked']}**
-👥 المجموعات المراقبة: **{BOT_STATUS['total_groups']}**
-📋 الكلمات المفتاحية: **{len(KEYWORDS_SET)}**
-🛡 أنماط الإعلانات: **{len(AD_PATTERNS)}**
-🕐 آخر طلب: **{BOT_STATUS['last_request'] or 'لا يوجد'}**
-                """
+                msg = f"🟢 **حالة البوت**\n👑 المطور: **{DEVELOPER}**\n⏱ التشغيل: **{hours}h {minutes}m {seconds}s**\n📊 المراقبة: **{'✅ نشطة' if BOT_STATUS['monitoring'] else '⛔ متوقفة'}**\n📨 الطلبات: **{BOT_STATUS['total_requests']}**\n🛡 الإعلانات المحظورة: **{BOT_STATUS['total_ads_blocked']}**"
                 await client.send_message(reply_target, msg)
                 return
-            
-            # ========== أمر تشغيل المراقبة ==========
             elif command == '/monitor':
                 BOT_STATUS['monitoring'] = True
-                await client.send_message(reply_target, f"✅ **تم تشغيل المراقبة**\n👑 المطور: {DEVELOPER}")
+                await client.send_message(reply_target, f"✅ **تم تشغيل المراقبة**\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر إيقاف المراقبة ==========
             elif command == '/stopmonitor':
                 BOT_STATUS['monitoring'] = False
-                await client.send_message(reply_target, f"⛔ **تم إيقاف المراقبة**\n👑 المطور: {DEVELOPER}")
+                await client.send_message(reply_target, f"⛔ **تم إيقاف المراقبة**\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر إضافة كلمة ==========
             elif command == '/addkw' and argument:
-                if argument not in KEYWORDS_SET:
-                    KEYWORDS_SET.add(argument)
-                    await client.send_message(reply_target, f"✅ **تمت إضافة الكلمة:** `{argument}`\n👑 {DEVELOPER}")
-                else:
-                    await client.send_message(reply_target, f"⚠️ الكلمة موجودة مسبقاً")
+                KEYWORDS_SET.add(argument)
+                await client.send_message(reply_target, f"✅ **تمت إضافة الكلمة:** `{argument}`\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر حذف كلمة ==========
             elif command == '/delkw' and argument:
-                if argument in KEYWORDS_SET:
-                    KEYWORDS_SET.remove(argument)
-                    await client.send_message(reply_target, f"🗑 **تم حذف الكلمة:** `{argument}`\n👑 {DEVELOPER}")
-                else:
-                    await client.send_message(reply_target, f"⚠️ الكلمة غير موجودة")
+                KEYWORDS_SET.discard(argument)
+                await client.send_message(reply_target, f"🗑 **تم حذف الكلمة:** `{argument}`\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر عرض الكلمات ==========
             elif command == '/listkw':
                 kw_list = "\n".join([f"• `{kw}`" for kw in sorted(KEYWORDS_SET)])
-                if len(kw_list) > 4000:
-                    kw_list = kw_list[:4000] + "\n... (تم الاختصار)"
-                await client.send_message(reply_target, f"📋 **الكلمات ({len(KEYWORDS_SET)}):**\n{kw_list}\n\n👑 {DEVELOPER}")
+                await client.send_message(reply_target, f"📋 **الكلمات:**\n{kw_list[:4000]}")
                 return
-            
-            # ========== أمر إضافة إعلان ==========
             elif command == '/addad' and argument:
-                if argument not in AD_PATTERNS:
-                    AD_PATTERNS.append(argument)
-                    await client.send_message(reply_target, f"✅ **تمت إضافة نمط:** `{argument}`\n👑 {DEVELOPER}")
-                else:
-                    await client.send_message(reply_target, f"⚠️ النمط موجود مسبقاً")
+                AD_PATTERNS.append(argument)
+                await client.send_message(reply_target, f"✅ **تمت إضافة النمط:** `{argument}`\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر حذف إعلان ==========
             elif command == '/delad' and argument:
-                if argument in AD_PATTERNS:
-                    AD_PATTERNS.remove(argument)
-                    await client.send_message(reply_target, f"🗑 **تم حذف النمط:** `{argument}`\n👑 {DEVELOPER}")
-                else:
-                    await client.send_message(reply_target, f"⚠️ النمط غير موجود")
+                if argument in AD_PATTERNS: AD_PATTERNS.remove(argument)
+                await client.send_message(reply_target, f"🗑 **تم حذف النمط:** `{argument}`\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر عرض الإعلانات ==========
             elif command == '/listad':
                 ad_list = "\n".join([f"• `{ad}`" for ad in AD_PATTERNS])
-                if len(ad_list) > 4000:
-                    ad_list = ad_list[:4000] + "\n..."
-                await client.send_message(reply_target, f"🛡 **أنماط الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}\n\n👑 {DEVELOPER}")
+                await client.send_message(reply_target, f"🛡 **أنماط الإعلانات:**\n{ad_list[:4000]}")
                 return
-            
-            # ========== أمر تصفير الإحصائيات ==========
             elif command == '/reset':
                 BOT_STATUS['total_requests'] = 0
                 BOT_STATUS['total_ads_blocked'] = 0
-                BOT_STATUS['total_groups'] = 0
-                BOT_STATUS['last_request'] = None
-                BOT_STATUS['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 await client.send_message(reply_target, f"🔄 **تم تصفير الإحصائيات**\n👑 {DEVELOPER}")
                 return
-            
-            # ========== أمر المساعدة والقائمة الرئيسية بالأزرار ==========
             elif command in ['/help', '/start']:
                 help_msg, buttons = build_main_menu()
                 await client.send_message(reply_target, help_msg, buttons=buttons)
                 return
 
-        # ========== نظام التقاط الطلبات ==========
         if BOT_STATUS['monitoring'] and event.is_group:
-            if not text:
-                return
-            
-            # حظر الإعلانات
             if is_ad(text):
                 BOT_STATUS['total_ads_blocked'] += 1
                 return
-            
-            # البحث عن الكلمات المفتاحية
+
             keyword = check_keywords_fast(text)
-            
             if keyword:
-                # تحديث الإحصائيات
                 BOT_STATUS['total_requests'] += 1
                 BOT_STATUS['last_request'] = datetime.now().strftime('%H:%M:%S')
                 
-                # إضافة المجموعة للمراقبة إذا كانت جديدة
-                group_id = getattr(chat, 'id', None)
-                if group_id and group_id not in MONITORED_GROUPS:
-                    MONITORED_GROUPS.add(group_id)
-                    BOT_STATUS['total_groups'] = len(MONITORED_GROUPS)
-                
-                group_name = getattr(chat, 'title', 'مجموعة غير معروفة')
-                group_link = await get_group_link(chat)
-                
-                first = getattr(sender, 'first_name', '') or ''
-                last = getattr(sender, 'last_name', '') or ''
-                full_name = (first + ' ' + last).strip() or 'مجهول'
-                username = getattr(sender, 'username', None)
                 user_id = getattr(sender, 'id', 0)
-                
-                user_display = "[" + full_name + "](tg://user?id=" + str(user_id) + ")"
-                
-                if group_link:
-                    group_display = "[" + group_name + "](" + group_link + ")"
-                else:
-                    group_display = group_name
-                
+                first_name = getattr(sender, 'first_name', '') or ''
+                username = getattr(sender, 'username', None)
                 category = get_category(keyword)
                 color = CATEGORY_COLORS.get(category, '📌')
-                
-                if len(text) > 400:
-                    short_text = text[:400] + "\n... (تم اختصار الرسالة)"
-                else:
-                    short_text = text
-                
-                msg = ""
-                msg += color + " **طلب جديد - " + category + "**\n\n"
-                msg += "📌 **الكلمة:** `" + keyword + "`\n"
-                msg += "📂 **التصنيف:** " + category + "\n\n"
-                msg += "👤 **المرسل:** " + user_display + "\n"
-                
-                if username:
-                    msg += "🔹 **اليوزر:** @" + username + "\n"
-                else:
-                    msg += "🔹 **اليوزر:** لا يوجد\n"
-                    
-                msg += "🆔 **الايدي:** `" + str(user_id) + "`\n\n"
-                msg += "💬 **المجموعة:** " + group_display + "\n\n"
-                msg += "📝 **الرسالة:**\n```\n"
-                msg += short_text
-                msg += "\n```\n\n"
-                msg += "⏰ **الوقت:** " + str(event.date.strftime('%Y-%m-%d %H:%M:%S'))
-                msg += f"\n\n👑 المطور: {DEVELOPER}"
-                
+
+                msg = f"{color} **طلب جديد - {category}**\n\n"
+                msg += f"📌 **الكلمة:** `{keyword}`\n"
+                msg += f"👤 **المرسل:** [{first_name}](tg://user?id={user_id})\n"
+                msg += f"🔹 **اليوزر:** @{username if username else 'لا يوجد'}\n\n"
+                msg += f"📝 **الرسالة:**\n```\n{text[:300]}\n```\n\n"
+                msg += f"👑 المطور: {DEVELOPER}"
+
                 try:
                     await client.send_message(TARGET_CHANNEL, msg, link_preview=False)
-                    print("✅ [طلب] " + full_name + " | " + keyword)
                 except Exception as e:
-                    print("❌ خطأ: " + str(e))
+                    print(f"Error: {e}")
 
     await client.run_until_disconnected()
 
-# ========== سيرفر الويب ==========
+# ========== سيرفر الويب Flask ==========
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return f"🤖 البوت يعمل 24/7 | 👑 {DEVELOPER}"
+    return f"🤖 البوت يعمل بنجاح 24/7 | 👑 {DEVELOPER}"
 
-@app.route('/status')
-def web_status():
-    return json.dumps(BOT_STATUS, ensure_ascii=False, indent=2)
+def run_telethon():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_bot())
 
-def run_web_server():
-    app.run(host='0.0.0.0', port=10000)
-
-# ========== التشغيل ==========
 if __name__ == '__main__':
-    Thread(target=run_web_server).start()
-    asyncio.run(main())
+    t = Thread(target=run_telethon)
+    t.daemon = True
+    t.start()
+    app.run(host='0.0.0.0', port=PORT)
