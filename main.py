@@ -1,9 +1,9 @@
-import asyncio
+hereimport asyncio
 import os
 import re
 import json
 from datetime import datetime
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, Button
 from telethon.sessions import StringSession
 from threading import Thread
 from flask import Flask
@@ -14,7 +14,7 @@ API_HASH = os.environ.get('API_HASH', 'd079f23211d239c1ebb67eac4dc5095e')
 SESSION_STRING = '1BJWap1sBuzFdEendO9uUi4XQdIAT_85hA-sevAZWtrkxUR4ICdyOli_26gpn0VKbY5A1WE-kxLYMuc1yCs3-VBac7FaDS4g9nofFRvLJZT1-aZ0jMkI7himMW8GIi4YoNalinqW7mtjwuH-zZJBQ5eQ3WQh8h1So9mkIY2gBv2zTjwuBz87lWFG1OIDfEsAIMhvOrkRwA-V9Tz3shK5nJvlemzjIW0ZMSs1exMY5mhPuQd81LCi79EM1PVu9-KC6t5DW2DlWyaY5iOdwrJV4kUXmJ1bZzCyrQxTloMGwYQva3DHy92xhGzd8z0neRGq0migff0GBc0Kgo6X_ANrtSE8Ubtnsa0A='
 TARGET_CHANNEL = int(os.environ.get('TARGET_CHANNEL', -1003948605081))
 ADMIN_ID = int(os.environ.get('ADMIN_ID', 0))  # ضع ايدي حسابك هنا لحماية الأوامر
-DEVELOPER = "بولد"
+DEVELOPER = "العباد الشدادي"
 # =================================================
 
 # ========== حالة البوت ==========
@@ -212,16 +212,99 @@ async def get_group_link(chat):
         pass
     return None
 
+def build_main_menu():
+    msg = f"""
+🤖 **بوت الخدمات الطلابية الذكي**
+👑 المطور: **{DEVELOPER}**
+──────────────────
+⚙️ **أوامر المراقبة:**
+• `/monitor` - تشغيل المراقبة
+• `/stopmonitor` - إيقاف المراقبة
+• `/status` - حالة البوت والإحصائيات
+• `/reset` - تصفير الإحصائيات
+
+📌 **أوامر الكلمات المفتاحية:**
+• `/addkw` - إضافة كلمة (مثال: `/addkw بحث`)
+• `/delkw` - حذف كلمة (مثال: `/delkw بحث`)
+• `/listkw` - عرض الكلمات المفتاحية
+
+🛡 **أوامر الإعلانات:**
+• `/addad` - إضافة نمط إعلان
+• `/delad` - حذف نمط إعلان
+• `/listad` - عرض أنماط الإعلانات
+
+📊 **أوامر عامة:**
+• `/help` - عرض هذه القائمة
+    """
+    
+    buttons = [
+        [
+            Button.inline("📊 حالة البوت", data=b"status"),
+            Button.inline("⚙️ المراقبة (تشغيل/إيقاف)", data=b"toggle_monitor")
+        ],
+        [
+            Button.inline("📋 قائمة الكلمات المفتاحية", data=b"listkw"),
+            Button.inline("🛡 أنماط الإعلانات", data=b"listad")
+        ],
+        [
+            Button.inline("🔄 تصفير الإحصائيات", data=b"reset")
+        ]
+    ]
+    return msg, buttons
+
 # ========== الحدث الرئيسي للبوت ==========
 async def main():
     print("🚀 البوت يعمل...")
     print(f"👑 المطور: {DEVELOPER}")
     await client.start()
     
-    # الحصول على معرف الحساب المشغل لضمان عمل أوامر الحساب الخاص بها
     me = await client.get_me()
     owner_id = me.id
     print(f"✅ تم تسجيل الدخول بنجاح باسم: {me.first_name} (ID: {owner_id})")
+
+    # التعامل مع أزرار الشاشة (Callback Query Handler)
+    @client.on(events.CallbackQuery)
+    async def callback_handler(event):
+        data = event.data.decode('utf-8')
+        
+        if data == "status":
+            uptime = datetime.now() - datetime.strptime(BOT_STATUS['start_time'], '%Y-%m-%d %H:%M:%S')
+            hours, remainder = divmod(uptime.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            status_text = f"""
+🟢 **حالة البوت**
+👑 المطور: **{DEVELOPER}**
+⏱ مدة التشغيل: **{hours}h {minutes}m {seconds}s**
+📊 المراقبة: **{'✅ نشطة' if BOT_STATUS['monitoring'] else '⛔ متوقفة'}**
+📨 الطلبات المجمعة: **{BOT_STATUS['total_requests']}**
+🛡 الإعلانات المحظورة: **{BOT_STATUS['total_ads_blocked']}**
+👥 المجموعات المراقبة: **{BOT_STATUS['total_groups']}**
+📋 الكلمات المفتاحية: **{len(KEYWORDS_SET)}**
+🛡 أنماط الإعلانات: **{len(AD_PATTERNS)}**
+🕐 آخر طلب: **{BOT_STATUS['last_request'] or 'لا يوجد'}**
+            """
+            await event.respond(status_text)
+        elif data == "toggle_monitor":
+            BOT_STATUS['monitoring'] = not BOT_STATUS['monitoring']
+            state = "✅ تم تشغيل المراقبة" if BOT_STATUS['monitoring'] else "⛔ تم إيقاف المراقبة"
+            await event.respond(f"{state}\n👑 المطور: {DEVELOPER}")
+        elif data == "listkw":
+            kw_list = "\n".join([f"• `{kw}`" for kw in sorted(KEYWORDS_SET)])
+            if len(kw_list) > 4000:
+                kw_list = kw_list[:4000] + "\n... (تم الاختصار)"
+            await event.respond(f"📋 **الكلمات المفتاحية ({len(KEYWORDS_SET)}):**\n{kw_list}\n\n👑 {DEVELOPER}")
+        elif data == "listad":
+            ad_list = "\n".join([f"• `{ad}`" for ad in AD_PATTERNS])
+            if len(ad_list) > 4000:
+                ad_list = ad_list[:4000] + "\n..."
+            await event.respond(f"🛡 **أنماط الإعلانات ({len(AD_PATTERNS)}):**\n{ad_list}\n\n👑 {DEVELOPER}")
+        elif data == "reset":
+            BOT_STATUS['total_requests'] = 0
+            BOT_STATUS['total_ads_blocked'] = 0
+            BOT_STATUS['total_groups'] = 0
+            BOT_STATUS['last_request'] = None
+            BOT_STATUS['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            await event.respond(f"🔄 **تم تصفير الإحصائيات بنجاح**\n👑 {DEVELOPER}")
 
     @client.on(events.NewMessage)
     async def handler(event):
@@ -231,13 +314,11 @@ async def main():
         text = event.raw_text or ""
 
         # ========== نظام الأوامر ==========
-        # الشرط المعدل: قبول الأمر إذا أُرسل في القناة المحددة أو في الخاص أو تم إرساله بواسطة الحساب نفسه
         is_target_channel = hasattr(chat, 'id') and chat.id == TARGET_CHANNEL
         is_private_msg = event.is_private
         is_authorized_user = (sender_id == ADMIN_ID) or (sender_id == owner_id) or event.out
 
         if (is_target_channel or is_private_msg) and text.startswith('/'):
-            # التثبت من صلاحية المستخدم لعدم تنفد الأوامر من الغرباء في المحادثات الخاصة
             if is_private_msg and not is_authorized_user:
                 return
 
@@ -245,7 +326,6 @@ async def main():
             command = parts[0].lower()
             argument = parts[1] if len(parts) > 1 else ""
             
-            # تحديد الوجهة التي سيرد عليها البوت (نفس الشات الذي أُرسل منه الأمر)
             reply_target = event.chat_id
 
             # ========== أمر الحالة ==========
@@ -343,32 +423,10 @@ async def main():
                 await client.send_message(reply_target, f"🔄 **تم تصفير الإحصائيات**\n👑 {DEVELOPER}")
                 return
             
-            # ========== أمر المساعدة ==========
+            # ========== أمر المساعدة والقائمة الرئيسية بالأزرار ==========
             elif command in ['/help', '/start']:
-                help_msg = f"""
-🤖 **بوت الخدمات الطلابية الذكي**
-👑 المطور: **{DEVELOPER}**
-
-⚙️ **أوامر المراقبة:**
-`/monitor` - تشغيل المراقبة
-`/stopmonitor` - إيقاف المراقبة
-`/status` - حالة البوت والإحصائيات
-`/reset` - تصفير الإحصائيات
-
-📌 **أوامر الكلمات المفتاحية:**
-`/addkw كلمة` - إضافة كلمة
-`/delkw كلمة` - حذف كلمة
-`/listkw` - عرض الكلمات
-
-🛡 **أوامر الإعلانات:**
-`/addad نمط` - إضافة نمط إعلان
-`/delad نمط` - حذف نمط إعلان
-`/listad` - عرض الأنماط
-
-📊 **أوامر عامة:**
-`/help` - هذه القائمة
-                """
-                await client.send_message(reply_target, help_msg)
+                help_msg, buttons = build_main_menu()
+                await client.send_message(reply_target, help_msg, buttons=buttons)
                 return
 
         # ========== نظام التقاط الطلبات ==========
