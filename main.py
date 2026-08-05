@@ -427,7 +427,10 @@ def home():
 def run_web_server():
     app.run(host='0.0.0.0', port=10000)
 
-# ========== التشغيل المباشر ==========
+# ========== التشغيل المباشر الصحيح ==========
 if __name__ == '__main__':
-    Thread(target=run_web_server).start()
-    asyncio.run(main())
+    # تشغيل سيرفر الخادم في الخلفية
+    Thread(target=run_web_server, daemon=True).start()
+    
+    # تشغيل البوت باستخدام دورة الأحداث الخاصة بـ Telethon
+    client.loop.run_until_complete(main())
